@@ -3,165 +3,208 @@ import pandas as pd
 import numpy as np
 from sksurv.ensemble import RandomSurvivalForest
 from sksurv.util import Surv
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
-# 设置Streamlit页面布局
 st.title("Postoperative EOCRC Prediction Model (OncoE25)")
 st.write("Enter the following items to display the predicted postoperative survival risk")
 
-# 加载数据
+# —— 1. 加载数据 & 训练模型 —— #
 @st.cache_data
 def load_data():
-    data = pd.read_csv('EOCRC_rectum_top_filtered.csv','EOCRC_colon_top_filtered.csv') 
-    return data
-drop_cols = ["Patient ID"]
+    rect_df = pd.read_csv('EOCRC_rectum_top_filtered.csv')
+    col_df  = pd.read_csv('EOCRC_colon_top_filtered.csv')
+    return rect_df, col_df
 
-data = load_data()
-
-# 构建生存数据
-y = Surv.from_dataframe('SEER cause-specific death classification', 'Survival months', data)
-X = data.drop(columns=['Survival months', 'SEER cause-specific death classification'])
-
-# 按照 7:3 划分训练集与测试集
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-
-# 初始化随机生存森林模型
 @st.cache_resource
-def train_model():
-    rsf= RandomSurvivalForest(
-    n_estimators=100,
-    learning_rate=0.16896118299845536,
-    max_depth=2,
-    min_samples_split=10,
-    min_samples_leaf=2,
-    subsample=0.972908417361546
-)
+def train_model(df):
+    y = Surv.from_dataframe('SEER cause-specific death classification',
+                            'Survival months', df)
+    X = df.drop(columns=['Survival months',
+                         'SEER cause-specific death classification',
+                         'Patient ID'] , errors='ignore')
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.3, random_state=42)
+    rsf = RandomSurvivalForest(
+        n_estimators=100,
+        min_samples_split=10,
+        min_samples_leaf=2,
+        max_depth=2,
+        subsample=0.972908417361546,
+        random_state=42
+    )
     rsf.fit(X_train, y_train)
-    return gbsa
+    return rsf, X_train
 
-rsf = train_model()
+rect_data, colon_data = load_data()
+rect_model,  rect_X_train  = train_model(rect_data)
+colon_model, colon_X_train = train_model(colon_data)
 
-# 定义有序变量的类别
+# —— 2. 定义所有类别选项 —— #
 ordered_var_categories = {
     'T': ['Tis', 'T1', 'T2', 'T3', 'T4'],
     'N': ['N0', 'N1', 'N2'],
-    'TNM Stage': ['0', 'I', 'IIA', 'IIB', 'IIC', 'IIIA', 'IIIB', 'IIIC'],
-    'CEA': ['＜5', '≥5'],
-    'Median household income': ['<$40,000', '40,000 - $44,999', '$45,000 - $49,999', '$50,000 - $54,999'，'$55,000 - $59,999'，'$60,000 - $64,999'，'$65,000 - $69,999'，'$70,000 - $74,999'，'$75,000 - $79,999'，'$80,000 - $84,999'，'$$85,000 - $89,999'，'$90,000 - $94,999'，'$95,000 - $99,999'，'$100,000 - $109,999'，'$110,000 - $119,999'，'$120,000+']，
-    'Grade': ['I', 'II', 'III', 'IV'],
-    'No. of resected LNs': ['0', '1-3', '≥4']
+    'CEA': ['＜5', '≥5']
 }
+sex_categories = ["Female", "Male"]
+race_categories = ["White", "Black", "Asian or Pacific Islander", "American Indian/Alaska Native"]
+rectum_sites = ["Rectum", "Rectosigmoid Junction"]
+colon_sites = ["Ascending Colon", "Sigmoid Colon", "Hepatic Flexure", "Splenic Flexure",
+               "Transverse Colon", "Descending Colon", "Cecum"]
+rural_urban_categories = [
+    'Metropolitan counties (1 million+)',
+    'Rural counties near urban areas',
+    'Medium metro counties (250K to 1M)',
+    'Small metro counties (<250K)',
+    'Remote rural counties (not near urban areas)'
+]
+histology_categories = [
+    "Adenocarcinoma, NOS",
+    "Mucinous adenocarcinoma",
+    "Villous adenocarcinoma",
+    "Signet ring cell carcinoma",
+    "Other",
+    "Mixed adenocarcinoma"
+]
+systemic_seq_categories = [
+    "Untreated",
+    "Postoperative",
+    "Preoperative",
+    "Preoperative+Postoperative",
+    "Sequence unknown"
+]
+colon_resection_types = [
+    "Partial/subtotal colectomy",
+    "Hemicolectomy or greater",
+    "Total colectomy",
+    "Colectomy plus removal of other organs"
+]
+rectum_resection_types = [
+    "Partial proctectomy",
+    "Pull-through resection WITH sphincter preservation",
+    "Abdominoperineal resection or complete proctectomy",
+    "PLUS partial or total removal of other organs",
+    "Pelvic Exenteration"
+]
 
-# 三列布局
+# —— 3. 页面三列布局 —— #
 col1, col2, col3 = st.columns(3)
+
 with col1:
-    marital_status = st.selectbox("Marital status", options=["Single", "Married", "Divorced", "Widowed"], index=0)
-    income = st.selectbox("Median Household Income", options=ordered_var_categories['Median household income'], index=0)
-    cea = st.selectbox("CEA（ng/mL）", options=ordered_var_categories['CEA'], index=0)
+    primary_site = st.selectbox("Primary site",
+        options=rectum_sites + colon_sites)
+    sex          = st.selectbox("Sex", options=sex_categories)
+    race         = st.selectbox("Race", options=race_categories)
+    rural_urban  = st.selectbox("Rural-Urban Continuum",
+                        options=rural_urban_categories)
+
 with col2:
-    t = st.selectbox("T", options=ordered_var_categories['T'], index=0)
-    n = st.selectbox("N", options=ordered_var_categories['N'], index=0)
-    tumor_deposits = st.selectbox("Tumor Deposits", options=ordered_var_categories['Tumor Deposits'], index=0)
+    histology    = st.selectbox("Histology Type",
+                        options=histology_categories)
+    resection    = st.selectbox("Resection type",
+        options=(rectum_resection_types if primary_site in rectum_sites
+                 else colon_resection_types))
+    t            = st.selectbox("T", options=ordered_var_categories['T'])
+    n            = st.selectbox("N", options=ordered_var_categories['N'])
+    tumor_deposits = st.number_input("Tumor Deposits (numeric)", min_value=0.0, step=1.0)
+
 with col3:
-    surg_rad_seq = st.selectbox("Surgical and Radiation Sequence", options=[
-        "Untreated", 
-        "Postoperative", 
-        "Preoperative", 
-        "Preoperative+Postoperative", 
-        "Sequence unknown"
-    ], index=0)
-    chemotherapy = st.selectbox("Chemotherapy", options=["No", "Yes"], index=0)
-    perineural_invasion = st.selectbox("Perineural Invasion", options=["No", "Yes"], index=0)
+    income       = st.selectbox("Median Household Income",
+                        options=[
+                            '<$40,000', '40,000 - $44,999', '$45,000 - $49,999',
+                            '$50,000 - $54,999', '$55,000 - $59,999',
+                            '$60,000 - $64,999', '$65,000 - $69,999',
+                            '$70,000 - $74,999', '$75,000 - $79,999',
+                            '$80,000 - $84,999', '$85,000 - $89,999',
+                            '$90,000 - $94,999', '$95,000 - $99,999',
+                            '$100,000 - $109,999', '$110,000 - $119,999',
+                            '$120,000+'
+                        ])
+    cea          = st.selectbox("CEA（ng/mL）",
+                        options=ordered_var_categories['CEA'])
+    systemic_seq = st.selectbox("Systemic Surgery Sequence",
+                        options=systemic_seq_categories)
 
-# 手动编码每个分类特征
-input_data = pd.DataFrame({
-    "Marital_status_Married": [1 if marital_status == "Married" else 0],
-    "Marital_status_Divorced": [1 if marital_status == "Divorced" else 0],
-    "Marital_status_Widowed": [1 if marital_status == "Widowed" else 0],
-    "Surg.Rad.Seq_Postoperative": [1 if surg_rad_seq == "Postoperative" else 0],
-    "Surg.Rad.Seq_Preoperative": [1 if surg_rad_seq == "Preoperative" else 0],
-    "Surg.Rad.Seq_Preoperative+Postoperative": [1 if surg_rad_seq == "Preoperative+Postoperative" else 0],
-    "Surg.Rad.Seq_Sequence_unknown": [1 if surg_rad_seq == "Sequence unknown" else 0],
-    "Chemotherapy_Yes": [1 if chemotherapy == "Yes" else 0],
-    "Perineural_Invasion_Yes": [1 if perineural_invasion == "Yes" else 0]
-})
-
-# 预测风险评分
+# —— 4. 编码 & 预测 —— #
 if st.button("Submit"):
-    # 确保 input_data 的列顺序与训练时一致
-    input_data = input_data.reindex(columns=X_train.columns, fill_value=0)
-
-    # 打印 NumPy 数组形式的输入数据
-    input_data_array = input_data.to_numpy()
-
-    # 预测风险评分并赋值给 predicted_risk
-    predicted_risk = gbsa.predict(input_data)
-
-    # 预测累积风险函数
-    cumulative_hazard_functions = gbsa.predict_cumulative_hazard_function(input_data_array)
-
-    # 获取所有时间点的累积风险值
-    risks_matrix = []
-    time_index = None
-
-    for cumulative_hazard_func in cumulative_hazard_functions:
-        risks = cumulative_hazard_func.y  # 累积风险值
-        time_index = cumulative_hazard_func.x  # 对应的时间点
-        risks_matrix.append(risks)
-
-    # 显示分层标题
-    st.markdown("### Risk Stratification")
-
-    # 计算三分位数风险分层
-    all_risks = gbsa.predict(X_train)  # 计算训练集中的所有风险评分
-    q1, q2 = np.percentile(all_risks, [33.33, 66.67])  # 33.33% 和 66.67% 作为分位数
-
-    # 显示风险分层的详细信息
-    st.write(f"Low Risk: below {q1:.4f} (green line)")
-    st.write(f"Medium Risk: between {q1:.4f} and {q2:.4f} (orange line)")
-    st.write(f"High Risk: above {q2:.4f} (red line)")
-
-    # 显示患者的风险分层并使用颜色
-    if predicted_risk[0] < q1:
-        st.markdown(f"<span style='color: green;'>The current patient's risk group: Low Risk</span>", unsafe_allow_html=True)
-    elif predicted_risk[0] < q2:
-        st.markdown(f"<span style='color: orange;'>The current patient's risk group: Medium Risk</span>", unsafe_allow_html=True)
+    # 选择对应模型与训练集列
+    if primary_site in rectum_sites:
+        model    = rect_model
+        X_train  = rect_X_train
     else:
-        st.markdown(f"<span style='color: red;'>The current patient's risk group: High Risk</span>", unsafe_allow_html=True)
+        model    = colon_model
+        X_train  = colon_X_train
 
-    # 计算 1、3、5 年的生存率
-    time_points = [12, 36, 60]  # 12个月(1年), 36个月(3年), 60个月(5年)
-    survival_rates = {}
+    # 构造 input_data
+    one_hot_map = {}
+    # ordered (T, N, CEA)
+    one_hot_map["T"]   = ordered_var_categories['T'].index(t)
+    one_hot_map["N"]   = ordered_var_categories['N'].index(n)
+    one_hot_map["CEA"] = ordered_var_categories['CEA'].index(cea)
+    # numeric
+    one_hot_map["Tumor Deposits"] = tumor_deposits
 
-    for time_point in time_points:
-        # 获取在特定时间点的累积风险值
-        survival_rate = 1 - cumulative_hazard_functions[0](time_point)
-        # 将月份转换为年，并保存生存率
-        survival_rates[f"{time_point // 12} -year survival rate"] = survival_rate
+    # 所有 one-hot 列
+    def add_onehot(prefix, options, choice):
+        for opt in options:
+            key = f"{prefix}_{opt}"
+            one_hot_map[key] = (1 if choice == opt else 0)
 
-    # 显示 1, 3, 5 年的生存率
-    st.markdown("### 1, 3, 5-year survival rates")
-    for time_point, survival_rate in survival_rates.items():
-        # 显示生存率，时间点显示为年
-        st.write(f"{time_point}: {survival_rate:.4f}")
+    add_onehot("Sex", sex_categories, sex)
+    add_onehot("Race", race_categories, race)
+    add_onehot("Primary site", rectum_sites + colon_sites, primary_site)
+    add_onehot("Rural-Urban Continuum", rural_urban_categories, rural_urban)
+    add_onehot("Histology Type", histology_categories, histology)
+    add_onehot("Systemic.Sur.Seq", systemic_seq_categories, systemic_seq)
+    if primary_site in rectum_sites:
+        add_onehot("Resection type", rectum_resection_types, resection)
+    else:
+        add_onehot("Resection type", colon_resection_types, resection)
 
-    # 输出累积风险曲线
+    # 转 DataFrame 并对齐列
+    input_df = pd.DataFrame([one_hot_map])
+    input_df = input_df.reindex(columns=X_train.columns, fill_value=0)
+
+    # 预测风险
+    risk_score = model.predict(input_df)[0]
+    cumhaz_funcs = model.predict_cumulative_hazard_function(input_df)
+    chf = cumhaz_funcs[0]  # 只有一条曲线
+
+    # 风险分层
+    all_scores = model.predict(X_train)
+    q1, q2 = np.percentile(all_scores, [33.33, 66.67])
+
+    st.markdown("### Risk Stratification")
+    st.write(f"Low Risk: below {q1:.4f}")
+    st.write(f"Medium Risk: between {q1:.4f} and {q2:.4f}")
+    st.write(f"High Risk: above {q2:.4f}")
+
+    if risk_score < q1:
+        st.markdown("<span style='color:green;'>Low Risk</span>", unsafe_allow_html=True)
+    elif risk_score < q2:
+        st.markdown("<span style='color:orange;'>Medium Risk</span>", unsafe_allow_html=True)
+    else:
+        st.markdown("<span style='color:red;'>High Risk</span>", unsafe_allow_html=True)
+
+    # 1/3/5-year 生存率
+    time_points = [12, 36, 60]
+    st.markdown("### 1, 3, 5-year Survival Rates")
+    for tp in time_points:
+        surv_rate = 1 - float(chf(tp))
+        st.write(f"{tp//12}-year: {surv_rate:.4f}")
+
+    # 累积风险曲线
     st.markdown("### Cumulative Hazard Curve")
     fig, ax = plt.subplots()
-    ax.plot(time_index, risks_matrix[0], label='Cumulative Hazard')
-    ax.set_xlabel("Time (Months)")
+    ax.plot(chf.x, chf.y, label="Cumulative Hazard")
+    ax.set_xlabel("Time (months)")
     ax.set_ylabel("Cumulative Hazard")
-    ax.set_title("Cumulative Hazard Curve")
     ax.legend()
     st.pyplot(fig)
-     # 将累积风险矩阵转置，使时间点作为行索引，并加上表头
-    risk_matrix_df = pd.DataFrame(risks_matrix).T  # 转置矩阵
-    risk_matrix_df.index = time_index  # 将时间点设为行索引
-    risk_matrix_df.columns = ["Predicted Cumulative Risk"] * risk_matrix_df.shape[1]  # 将所有列名设置为“Risk Score”
-    risk_matrix_df.index.name = "Time Point (month)"  # 设置行索引的表头为“Time point (month)”
 
-    # 显示表格上方的标题
+    # 风险矩阵
     st.markdown("### Cumulative Hazard Function Matrix")
-
-    # 显示风险矩阵，并使表格宽度较小
-    st.dataframe(risk_matrix_df, width=600)  # 将表格宽度设置为 600
+    risk_mat = pd.DataFrame([chf.y], columns=chf.x).T
+    risk_mat.index.name = "Time (month)"
+    risk_mat.columns = ["Cum. Haz."]
+    st.dataframe(risk_mat, width=600)
