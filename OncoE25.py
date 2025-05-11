@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sksurv.ensemble import GradientBoostingSurvivalAnalysis
+from sksurv.ensemble import RandomSurvivalForest
 from sksurv.util import Surv
 import matplotlib.pyplot as plt
 
@@ -13,14 +12,15 @@ st.write("Enter the following items to display the predicted postoperative survi
 # 加载数据
 @st.cache_data
 def load_data():
-    data = pd.read_csv('data_encoded7408_lasso.csv')
+    data = pd.read_csv('EOCRC_rectum_top_filtered.csv','EOCRC_colon_top_filtered.csv') 
     return data
+drop_cols = ["Patient ID"]
 
 data = load_data()
 
 # 构建生存数据
-y = Surv.from_dataframe('Survival_status', 'OS_month', data)
-X = data.drop(columns=['OS_month', 'Survival_status'])
+y = Surv.from_dataframe('SEER cause-specific death classification', 'Survival months', data)
+X = data.drop(columns=['Survival months', 'SEER cause-specific death classification'])
 
 # 按照 7:3 划分训练集与测试集
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
@@ -28,7 +28,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 # 初始化随机生存森林模型
 @st.cache_resource
 def train_model():
-    gbsa = GradientBoostingSurvivalAnalysis(
+    rsf= RandomSurvivalForest(
     n_estimators=100,
     learning_rate=0.16896118299845536,
     max_depth=2,
@@ -36,18 +36,20 @@ def train_model():
     min_samples_leaf=2,
     subsample=0.972908417361546
 )
-    gbsa.fit(X_train, y_train)
+    rsf.fit(X_train, y_train)
     return gbsa
 
-gbsa = train_model()
+rsf = train_model()
 
 # 定义有序变量的类别
 ordered_var_categories = {
     'T': ['Tis', 'T1', 'T2', 'T3', 'T4'],
     'N': ['N0', 'N1', 'N2'],
-    'CEA': ['＜5', '＞5'],
-    'Tumor Deposits': ['0', '1-2', '3+'],
-    'Median household income': ['＜$35,000', '$35,000-$54,999', '$55,000-$74,999', '≥$75,000+']
+    'TNM Stage': ['0', 'I', 'IIA', 'IIB', 'IIC', 'IIIA', 'IIIB', 'IIIC'],
+    'CEA': ['＜5', '≥5'],
+    'Median household income': ['<$40,000', '40,000 - $44,999', '$45,000 - $49,999', '$50,000 - $54,999'，'$55,000 - $59,999'，'$60,000 - $64,999'，'$65,000 - $69,999'，'$70,000 - $74,999'，'$75,000 - $79,999'，'$80,000 - $84,999'，'$$85,000 - $89,999'，'$90,000 - $94,999'，'$95,000 - $99,999'，'$100,000 - $109,999'，'$110,000 - $119,999'，'$120,000+']，
+    'Grade': ['I', 'II', 'III', 'IV'],
+    'No. of resected LNs': ['0', '1-3', '≥4']
 }
 
 # 三列布局
@@ -73,11 +75,6 @@ with col3:
 
 # 手动编码每个分类特征
 input_data = pd.DataFrame({
-    "T": [ordered_var_categories['T'].index(t)],  # T 转为数值
-    "N": [ordered_var_categories['N'].index(n)],  # N 转为数值
-    "CEA": [ordered_var_categories['CEA'].index(cea)],  # CEA 转为数值
-    "Tumor_Deposits": [ordered_var_categories['Tumor Deposits'].index(tumor_deposits)],  # Tumor Deposits 数值化
-    "Median_household_income": [ordered_var_categories['Median household income'].index(income)],  # 收入数值化
     "Marital_status_Married": [1 if marital_status == "Married" else 0],
     "Marital_status_Divorced": [1 if marital_status == "Divorced" else 0],
     "Marital_status_Widowed": [1 if marital_status == "Widowed" else 0],
