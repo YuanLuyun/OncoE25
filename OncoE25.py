@@ -7,7 +7,7 @@ from sksurv.util import Surv
 import matplotlib.pyplot as plt
 
 # 设置Streamlit页面布局
-st.title("Postoperative EOCRC Prediction Model (EOCRCpred)")
+st.title("Postoperative EOCRC Prediction Model (OncoE25)")
 st.write("Enter the following items to display the predicted postoperative survival risk")
 
 # 加载数据
