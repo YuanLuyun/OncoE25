@@ -44,7 +44,20 @@ colon_model, colon_X_train = train_model(colon_data)
 ordered_var_categories = {
     'T': ['Tis', 'T1', 'T2', 'T3', 'T4'],
     'N': ['N0', 'N1', 'N2'],
-    'CEA': ['＜5', '≥5']
+    'TNM Stage': ['0', 'I', 'IIA', 'IIB', 'IIC', 'IIIA', 'IIIB', 'IIIC'],
+    'Grade': ['I', 'II', 'III', 'IV'],
+    'CEA': ['＜5', '≥5'],
+    'Median household income': [
+        '<$40,000', '40,000 - $44,999', '$45,000 - $49,999',
+        '$50,000 - $54,999', '$55,000 - $59,999',
+        '$60,000 - $64,999', '$65,000 - $69,999',
+        '$70,000 - $74,999', '$75,000 - $79,999',
+        '$80,000 - $84,999', '$85,000 - $89,999',
+        '$90,000 - $94,999', '$95,000 - $99,999',
+        '$100,000 - $109,999', '$110,000 - $119,999',
+        '$120,000+'
+    ],
+    'No. of resected LNs': ['0', '1-3', '≥4']
 }
 sex_categories = ["Female", "Male"]
 race_categories = ["White", "Black", "Asian or Pacific Islander", "American Indian/Alaska Native"]
@@ -86,7 +99,14 @@ rectum_resection_types = [
     "PLUS partial or total removal of other organs",
     "Pelvic Exenteration"
 ]
-
+perineural_categories = ["No", "Yes"]
+surg_rad_seq_categories = [
+    "Untreated or unknown",
+    "Preoperative",
+    "Postoperative",
+    "Preoperative+Postoperative",
+    "Sequence unknown"
+]
 # —— 3. 页面三列布局 —— #
 col1, col2, col3 = st.columns(3)
 
@@ -124,6 +144,15 @@ with col3:
                         options=ordered_var_categories['CEA'])
     systemic_seq = st.selectbox("Systemic Surgery Sequence",
                         options=systemic_seq_categories)
+    surg_rad_seq = st.selectbox(
+        "Surgical & Radiation Sequence",
+        options=surg_rad_seq_categories
+    )
+    perineural = st.selectbox(
+        "Perineural Invasion",
+        options=perineural_categories
+    )
+
 
 # —— 4. 编码 & 预测 —— #
 if st.button("Submit"):
@@ -160,6 +189,10 @@ if st.button("Submit"):
         add_onehot("Resection type", rectum_resection_types, resection)
     else:
         add_onehot("Resection type", colon_resection_types, resection)
+        # 在 add_onehot 调用之后，补两行
+    add_onehot("Surg.Rad.Seq", surg_rad_seq_categories, surg_rad_seq)
+    add_onehot("Perineural Invasion", perineural_categories, perineural)
+
 
     # 转 DataFrame 并对齐列
     input_df = pd.DataFrame([one_hot_map])
