@@ -5,10 +5,6 @@ from sksurv.ensemble import RandomSurvivalForest
 from sksurv.util import Surv
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
-# — Version info in sidebar —
-st.sidebar.markdown("---")
-st.sidebar.markdown("**OncoE25** Online Tool • Version: May 2025")
-
 
 st.title("Postoperative EOCRC Prediction Model (OncoE25)")
 st.write("Enter the following items to display the predicted postoperative survival risk")
