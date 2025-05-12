@@ -135,11 +135,9 @@ with col1:
                         options=rural_urban_categories)
 
 with col2:
-    
     resection    = st.selectbox("Resection type",
         options=(rectum_resection_types if primary_site in rectum_sites
                  else colon_resection_types))
-    ln_count       = st.selectbox("No. of resected LNs", options=ordered_var_categories['No. of resected LNs'])
     histology    = st.selectbox("Histology Type",
                         options=histology_categories)
     grade          = st.selectbox("Grade", options=ordered_var_categories['Grade'])
@@ -151,6 +149,7 @@ with col3:
 
     cea          = st.selectbox("CEA（ng/mL）",
                         options=ordered_var_categories['CEA'])
+    ln_count       = st.selectbox("No. of resected LNs", options=ordered_var_categories['No. of resected LNs'])
     perineural = st.selectbox(
     "Perineural Invasion",
     options=perineural_categories
