@@ -63,6 +63,7 @@ ordered_var_categories = {
     'No. of resected LNs': ['0', '1-3', '≥4']
 }
 sex_categories = ["Female", "Male"]
+marital_categories = ["Single","Married","Widowed","Divorced","Separated"]
 race_categories = ["White", "Black", "Asian or Pacific Islander", "American Indian/Alaska Native"]
 rectum_sites = ["Rectum", "Rectosigmoid Junction"]
 colon_sites = ["Ascending Colon", "Sigmoid Colon", "Hepatic Flexure", "Splenic Flexure",
@@ -118,31 +119,38 @@ with col1:
         options=rectum_sites + colon_sites)
     sex          = st.selectbox("Sex", options=sex_categories)
     race         = st.selectbox("Race", options=race_categories)
+    marital      = st.selectbox("Marital status", options=marital_categories)
+    income       = st.selectbox("Median Household Income",
+                options=[
+                    '<$40,000', '40,000 - $44,999', '$45,000 - $49,999',
+                    '$50,000 - $54,999', '$55,000 - $59,999',
+                    '$60,000 - $64,999', '$65,000 - $69,999',
+                    '$70,000 - $74,999', '$75,000 - $79,999',
+                    '$80,000 - $84,999', '$85,000 - $89,999',
+                    '$90,000 - $94,999', '$95,000 - $99,999',
+                    '$100,000 - $109,999', '$110,000 - $119,999',
+                    '$120,000+'
+                ])
     rural_urban  = st.selectbox("Rural-Urban Continuum",
                         options=rural_urban_categories)
 
 with col2:
-    histology    = st.selectbox("Histology Type",
-                        options=histology_categories)
+    
     resection    = st.selectbox("Resection type",
         options=(rectum_resection_types if primary_site in rectum_sites
                  else colon_resection_types))
+    ln_count       = st.selectbox("No. of resected LNs", options=ordered_var_categories['No. of resected LNs'])
+    histology    = st.selectbox("Histology Type",
+                        options=histology_categories)
+    grade          = st.selectbox("Grade", options=ordered_var_categories['Grade'])
     t            = st.selectbox("T", options=ordered_var_categories['T'])
     n            = st.selectbox("N", options=ordered_var_categories['N'])
+    tnm_stage      = st.selectbox("TNM Stage", options=ordered_var_categories['TNM Stage'])
+
     tumor_deposits = st.number_input("Tumor Deposits (numeric)", min_value=0.0, step=1.0)
 
 with col3:
-    income       = st.selectbox("Median Household Income",
-                        options=[
-                            '<$40,000', '40,000 - $44,999', '$45,000 - $49,999',
-                            '$50,000 - $54,999', '$55,000 - $59,999',
-                            '$60,000 - $64,999', '$65,000 - $69,999',
-                            '$70,000 - $74,999', '$75,000 - $79,999',
-                            '$80,000 - $84,999', '$85,000 - $89,999',
-                            '$90,000 - $94,999', '$95,000 - $99,999',
-                            '$100,000 - $109,999', '$110,000 - $119,999',
-                            '$120,000+'
-                        ])
+
     cea          = st.selectbox("CEA（ng/mL）",
                         options=ordered_var_categories['CEA'])
     systemic_seq = st.selectbox("Systemic Surgery Sequence",
@@ -170,9 +178,14 @@ if st.button("Submit"):
     # 构造 input_data
     one_hot_map = {}
     # ordered (T, N, CEA)
-    one_hot_map["T"]   = ordered_var_categories['T'].index(t)
-    one_hot_map["N"]   = ordered_var_categories['N'].index(n)
-    one_hot_map["CEA"] = ordered_var_categories['CEA'].index(cea)
+    one_hot_map["T"]                   = ordered_var_categories['T'].index(t)
+    one_hot_map["N"]                   = ordered_var_categories['N'].index(n)
+    one_hot_map["CEA"]                 = ordered_var_categories['CEA'].index(cea)
+    one_hot_map["TNM Stage"]           = ordered_var_categories['TNM Stage'].index(tnm_stage)
+    one_hot_map["Grade"]               = ordered_var_categories['Grade'].index(grade)
+    one_hot_map["No. of resected LNs"] = ordered_var_categories['No. of resected LNs'].index(ln_count)
+    one_hot_map["Tumor Deposits"]      = tumor_deposits  # 本身就是数值
+
     # numeric
     one_hot_map["Tumor Deposits"] = tumor_deposits
 
@@ -184,6 +197,7 @@ if st.button("Submit"):
 
     add_onehot("Sex", sex_categories, sex)
     add_onehot("Race", race_categories, race)
+    add_onehot("Marital status", marital_categories, marital)
     add_onehot("Primary site", rectum_sites + colon_sites, primary_site)
     add_onehot("Rural-Urban Continuum", rural_urban_categories, rural_urban)
     add_onehot("Histology Type", histology_categories, histology)
