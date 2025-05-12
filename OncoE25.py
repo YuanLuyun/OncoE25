@@ -34,7 +34,6 @@ def train_model(df):
         min_samples_split=10,
         min_samples_leaf=2,
         max_depth=2,
-        subsample=0.972908417361546,
         random_state=42
     )
     rsf.fit(X_train, y_train)
