@@ -147,22 +147,22 @@ with col2:
     n            = st.selectbox("N", options=ordered_var_categories['N'])
     tnm_stage      = st.selectbox("TNM Stage", options=ordered_var_categories['TNM Stage'])
 
-    tumor_deposits = st.number_input("Tumor Deposits (numeric)", min_value=0.0, step=1.0)
-
 with col3:
 
     cea          = st.selectbox("CEA（ng/mL）",
                         options=ordered_var_categories['CEA'])
+    perineural = st.selectbox(
+    "Perineural Invasion",
+    options=perineural_categories
+)
+    tumor_deposits = st.number_input("Tumor Deposits (numeric)", min_value=0.0, step=1.0)
     systemic_seq = st.selectbox("Systemic Surgery Sequence",
                         options=systemic_seq_categories)
     surg_rad_seq = st.selectbox(
         "Surgical & Radiation Sequence",
         options=surg_rad_seq_categories
     )
-    perineural = st.selectbox(
-        "Perineural Invasion",
-        options=perineural_categories
-    )
+
 
 
 # —— 4. 编码 & 预测 —— #
